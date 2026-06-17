@@ -195,7 +195,7 @@ export function VoiceSession({
   async function sendTurn(userMessage: string) {
     setPhase("processing")
     const history = turnsRef.current.map((t) => ({
-      role: t.role === "ai" ? ("assistant" as const) : ("user" as const),
+      role: t.role === "ai" ? ("model" as const) : ("user" as const),
       content: t.content,
     }))
 

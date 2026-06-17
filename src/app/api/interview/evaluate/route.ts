@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { callClaude } from "@/lib/claude"
+import { callGemini } from "@/lib/gemini"
 import { buildEvaluatorPrompt } from "@/lib/prompts"
 
 export async function POST(request: Request) {
@@ -55,11 +55,11 @@ export async function POST(request: Request) {
     .join("\n\n")
 
   const systemPrompt = buildEvaluatorPrompt()
-  const claudeMessages = [{ role: "user" as const, content: transcript }]
+  const geminiMessages = [{ role: "user" as const, content: transcript }]
 
   let evaluationText: string
   try {
-    evaluationText = await callClaude(systemPrompt, claudeMessages)
+    evaluationText = await callGemini(systemPrompt, geminiMessages)
   } catch {
     return NextResponse.json(
       { error: "AI service unavailable" },

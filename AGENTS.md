@@ -13,7 +13,7 @@ A voice-first AI interview coach web application where users fill a quick setup 
 | Framework | Next.js 14 (App Router) |
 | Language | TypeScript |
 | Auth + Database | Supabase (Auth + Postgres) |
-| AI | Claude API — `claude-sonnet-4-6` |
+| AI | Gemini API — `gemini-2.0-flash` |
 | STT | Web Speech API (`SpeechRecognition`) — browser-native, free |
 | TTS | Web Speech Synthesis API (`speechSynthesis`) — browser-native, free |
 | Styling | Tailwind CSS + shadcn/ui |
@@ -30,10 +30,10 @@ Sign Up / Log In
 Fill Interview Setup Form
 (Job Title + Domain + Seniority)
       ↓
-AI generates interview questions dynamically via Claude API
+AI generates interview questions dynamically via Gemini API
       ↓
 Live Voice Session
-[User speaks → SpeechRecognition STT → Claude API → speechSynthesis TTS → User hears AI]
+[User speaks → SpeechRecognition STT → Gemini API → speechSynthesis TTS → User hears AI]
       ↓
 Session ends (user or AI wraps up after N questions)
       ↓
@@ -93,8 +93,8 @@ Dashboard (interview history + progress tracking)
 │   ├── supabase/
 │   │   ├── client.ts                   # Browser Supabase client
 │   │   └── server.ts                   # Server Supabase client (cookies)
-│   ├── claude.ts                       # Claude API wrapper (turn + evaluate)
-│   ├── prompts.ts                      # All Claude system prompts
+│   ├── gemini.ts                       # Gemini API wrapper (turn + evaluate)
+│   ├── prompts.ts                      # All system prompts
 │   └── utils.ts                        # cn(), formatters, helpers
 ├── store/
 │   └── interviewStore.ts               # Zustand — session state machine
@@ -208,7 +208,7 @@ interface InterviewStore {
 
 ---
 
-## Claude API — System Prompts (`lib/prompts.ts`)
+## Gemini API — System Prompts (`lib/prompts.ts`)
 
 ### Interviewer Prompt (used during `/api/interview/turn`)
 
@@ -272,7 +272,7 @@ Scoring rubric:
 - **Auth:** Required
 - **Body:** `{ interview_id, user_message, conversation_history }`
 - **Action:**
-  1. Call Claude with interviewer system prompt + full conversation history
+  1. Call Gemini with interviewer system prompt + full conversation history
   2. Insert both user turn and AI turn into `interview_turns`
   3. Check if response contains `[INTERVIEW_COMPLETE]`
   4. Return `{ ai_message, is_complete }`
@@ -282,7 +282,7 @@ Scoring rubric:
 - **Body:** `{ interview_id }`
 - **Action:**
   1. Fetch all turns for this interview from DB
-  2. Call Claude with evaluator prompt + full transcript
+  2. Call Gemini with evaluator prompt + full transcript
   3. Parse JSON response → insert into `feedback`, update `interviews.overall_score` and `status = 'completed'`
   4. Return `{ overall_score, improvements }`
 
@@ -322,8 +322,8 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=       # Server-only, never expose to client
 
-# Anthropic
-ANTHROPIC_API_KEY=               # Server-only, never expose to client
+# Gemini
+GEMINI_API_KEY=                   # Server-only, never expose to client
 ```
 
 ---
@@ -371,10 +371,10 @@ ANTHROPIC_API_KEY=               # Server-only, never expose to client
 
 ## Key Constraints & Rules for the Agent
 
-1. **Never expose `ANTHROPIC_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY` to the client.** All Claude and privileged Supabase calls happen in `app/api/**` server routes only.
+1. **Never expose `GEMINI_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY` to the client.** All Gemini and privileged Supabase calls happen in `app/api/**` server routes only.
 2. **All components using `SpeechRecognition`, `speechSynthesis`, `useState`, or `useEffect` must have `"use client"` at the top.**
 3. **Always validate user ownership server-side** — never trust `interview_id` from the client without verifying it belongs to the authenticated user via Supabase RLS or an explicit `.eq('user_id', user.id)` query.
-4. **Pass full conversation history** on every call to `/api/interview/turn` — Claude has no memory between requests.
+4. **Pass full conversation history** on every call to `/api/interview/turn` — Gemini has no memory between requests.
 5. **Target Chrome and Edge only** for the voice session. Show a clear unsupported browser message for all others.
 6. **shadcn/ui components** are installed via CLI (`npx shadcn@latest add <component>`), not copied manually.
 7. **Use the App Router exclusively.** No `pages/` directory. No `getServerSideProps`.

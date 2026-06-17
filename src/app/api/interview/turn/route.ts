@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { callClaude } from "@/lib/claude"
+import { callGemini } from "@/lib/gemini"
 import { buildInterviewerPrompt } from "@/lib/prompts"
 
 export async function POST(request: Request) {
@@ -50,14 +50,14 @@ export async function POST(request: Request) {
     interview.seniority
   )
 
-  const claudeMessages = [
+  const geminiMessages = [
     ...(conversation_history ?? []),
     { role: "user" as const, content: user_message },
   ]
 
   let aiMessage: string
   try {
-    aiMessage = await callClaude(systemPrompt, claudeMessages)
+    aiMessage = await callGemini(systemPrompt, geminiMessages)
   } catch {
     return NextResponse.json(
       { error: "AI service unavailable" },
