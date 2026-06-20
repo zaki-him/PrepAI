@@ -75,14 +75,23 @@ export function VoiceSession({
   const finalTranscriptRef = useRef("")
   const turnsRef = useRef(turns)
   const initializedRef = useRef(false)
+  const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   turnsRef.current = turns
 
   const maxQuestions = 5
 
+  function clearSilenceTimeout() {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current)
+      silenceTimeoutRef.current = null
+    }
+  }
+
   useEffect(() => {
     return () => {
       speechSynthesis.cancel()
+      clearSilenceTimeout()
       recognitionRef.current?.abort()
       reset()
     }
@@ -97,11 +106,24 @@ export function VoiceSession({
       for (const turn of existingTurns) {
         addTurn(turn)
       }
+
+      const previousAiCount = existingTurns.filter((t) => t.role === "ai").length
+      if (previousAiCount >= maxQuestions) {
+        evaluateInterview()
+        return
+      }
+
       const lastAiTurn = [...existingTurns].reverse().find((t) => t.role === "ai")
       if (lastAiTurn) {
         setCurrentAiText(lastAiTurn.content)
       }
-      setPhase("questioning")
+      setPhase("responding")
+      speakText(lastAiTurn?.content ?? "", () => {
+        finalTranscriptRef.current = ""
+        setCurrentTranscript("")
+        setPhase("listening")
+        startSpeechRecognition()
+      })
     } else {
       startInterview()
     }
@@ -128,6 +150,13 @@ export function VoiceSession({
     recognition.interimResults = true
     recognition.lang = "en-US"
 
+    function resetSilenceTimeout() {
+      clearSilenceTimeout()
+      silenceTimeoutRef.current = setTimeout(() => {
+        recognition.stop()
+      }, 2000)
+    }
+
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = ""
       let final = ""
@@ -143,9 +172,11 @@ export function VoiceSession({
         finalTranscriptRef.current += " " + final
       }
       setCurrentTranscript(finalTranscriptRef.current.trim() || interim)
+      resetSilenceTimeout()
     }
 
     recognition.onend = () => {
+      clearSilenceTimeout()
       const text = finalTranscriptRef.current.trim()
       if (text) {
         sendTurn(text)
@@ -155,6 +186,7 @@ export function VoiceSession({
     }
 
     recognition.onerror = () => {
+      clearSilenceTimeout()
       setPhase("questioning")
     }
 
@@ -187,7 +219,7 @@ export function VoiceSession({
         setPhase("listening")
         startSpeechRecognition()
       })
-    } catch {
+    } catch(error) {
       setPhase("idle")
     }
   }
@@ -263,6 +295,7 @@ export function VoiceSession({
   }
 
   function handleSkip() {
+    clearSilenceTimeout()
     recognitionRef.current?.abort()
     speechSynthesis.cancel()
     finalTranscriptRef.current = ""
@@ -276,6 +309,7 @@ export function VoiceSession({
     )
     if (confirmed) {
       speechSynthesis.cancel()
+      clearSilenceTimeout()
       recognitionRef.current?.abort()
       router.push("/dashboard")
     }
